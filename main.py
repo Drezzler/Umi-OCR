@@ -8,7 +8,7 @@ Umi.ver = "1.3.7"
 Umi.pname = "Umi-OCR"
 Umi.name = f"{Umi.pname} v{Umi.ver}"
 Umi.website = "https://github.com/hiroi-sora/Umi-OCR"
-Umi.about = "免费、开源的离线OCR软件"
+Umi.about = "Free, open source offline OCR software"
 
 
 def main():
@@ -18,4 +18,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# 打包使用 to_exe.py
+# Packaged for use to_exe.py

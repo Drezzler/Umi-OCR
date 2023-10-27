@@ -18,15 +18,15 @@ from PIL import ImageGrab, ImageTk
 from enum import Enum
 
 # TODO :
-# 截图模块的工作原理是：先获取虚拟屏幕（所有显示器的画面拼凑在一起）的完整截图。然后创建一块画布，
-# 画布的起点(左上角)是虚拟屏幕的左上角(xy可能为负值)，画布的宽高是虚拟屏幕的宽高，
-# 然后在画布上显示完整截图，监听用户按下与拖拽。此时画布上显示的截图的位置应与真实屏幕画面一一对应。
-# 但问题是，画布作为一个窗口，自身有一个缩放比例（即它出生的那块屏幕的缩放比）。
-# 若多屏幕的其中某块屏幕的缩放比与画布的缩放比不一致，在一定排列下，它们的逻辑坐标会错位，表现为画面错位。
-# 我原本希望通过获取全部屏幕的物理分辨率和逻辑分辨率，得到各自的缩放比，进而计算出画布坐标系下的“真实”逻辑坐标。
-# 但是，我没能摸清规律。参数与太多因素相关，
-# 屏幕的排列方式、软件点开时的状态、画布创建时的位置……都可能影响逻辑坐标和逻辑分辨率，
-# 使得很难计算画布坐标系下应该对屏幕矫正的锚点和比例。
+# The working principle of the screenshot module is: first obtain a complete screenshot of the virtual screen (the pictures of all monitors are put together). Then create a canvas,
+# The starting point of the canvas (upper left corner) is the upper left corner of the virtual screen (xy may be negative), and the width and height of the canvas are the width and height of the virtual screen.
+# Then display the complete screenshot on the canvas and monitor the user's press and drag. At this time, the position of the screenshot displayed on the canvas should correspond one-to-one with the real screen image.
+# But the problem is that the canvas, as a window, has a scaling ratio (that is, the scaling ratio of the screen where it was born).
+# If the scaling ratio of one of the multiple screens is inconsistent with the scaling ratio of the canvas, under a certain arrangement, their logical coordinates will be misaligned, which will appear as screen misalignment.
+# I originally hoped to obtain the physical resolution and logical resolution of all screens, obtain their respective scaling ratios, and then calculate the "real" logical coordinates in the canvas coordinate system.
+# However, I failed to figure out the pattern. Parameters are related to too many factors,
+# The arrangement of the screen, the state of the software when it is opened, the position of the canvas when it is created... may all affect the logical coordinates and logical resolution.
+# Makes it difficult to calculate the anchor points and proportions that should be corrected for the screen in the canvas coordinate system.
 
 Log = GetLog()
 
@@ -151,7 +151,8 @@ class ScreenshotWin():  # 内置截图模式
         # 计算缩放比例，若不一致，则发送提示弹窗
         # 条件：需要提示 | 大于一块屏幕时 | 本次信息与上次不同 | 设置需要提示
         scInfosLen = len(scInfos)
-        if self.promptSss and scInfosLen > 1 and not self.lastScInfos == scInfos and Config.get('promptScreenshotScale'):
+        if self.promptSss and scInfosLen > 1 and not self.lastScInfos == scInfos and Config.get(
+                'promptScreenshotScale'):
             scList = []
             self.lastScInfos = scInfos  # 屏幕信息与上次一样时跳过检测，减少耗时
             # 提取所有屏幕缩放比例
@@ -165,7 +166,7 @@ class ScreenshotWin():  # 内置截图模式
                 w = GetDeviceCaps(hDC, 118)  # 常量 win32con.DESKTOPHORZRES
                 # h = GetDeviceCaps(hDC, 117)  # 常量 win32con.DESKTOPVERTRES
                 # 得到缩放比，即windows的“更改文本、应用等项目的大小”
-                s = w / (sc[2][2]-sc[2][0])
+                s = w / (sc[2][2] - sc[2][0])
                 scList.append(s)
             # 检查缩放比例是否一致
             isEQ = True
@@ -209,12 +210,12 @@ class ScreenshotWin():  # 内置截图模式
         self.allScale = self.image.size[0] / scWidth  # 整个虚拟屏幕的缩放比例
         # 主窗口设置为铺满虚拟屏幕
         bd, bdp = 2, 1  # 边缘要额外拓展1像素，以免无法接收到鼠标在边缘的点击
-        scStr = f'{scWidth+bd}x{scHeight+bd}+{scLeft-bdp}+{scUp-bdp}'
+        scStr = f'{scWidth + bd}x{scHeight + bd}+{scLeft - bdp}+{scUp - bdp}'
         # print(f'缩放比：{self.allScale}')
         # self.topwin.tk.call('tk', 'scaling', self.allScale/75)
         self.topwin.geometry(scStr)
-        self.canvas['width'] = scWidth+bd
-        self.canvas['height'] = scHeight+bd
+        self.canvas['width'] = scWidth + bd
+        self.canvas['height'] = scHeight + bd
         # 原图改物理为虚拟屏幕分辨率，转成tk格式，导入画布
         self.imageTK = ImageTk.PhotoImage(
             self.image.resize((scWidth, scHeight)))
@@ -319,19 +320,19 @@ class ScreenshotWin():  # 内置截图模式
                 self.canvas.coords(self.sightBox[i],
                                    self.sightBoxXY[0], self.sightBoxXY[1], event.x, event.y)
         if self.debugList:
-            self.canvas.coords(self.debugXYText, event.x+6, event.y+3)
-            self.canvas.coords(self.debugXYBox, event.x+3,
-                               event.y+3, event.x+130, event.y+28)
+            self.canvas.coords(self.debugXYText, event.x + 6, event.y + 3)
+            self.canvas.coords(self.debugXYBox, event.x + 3,
+                               event.y + 3, event.x + 130, event.y + 28)
             # self.canvas.itemconfig(self.debugXYText, {'text':
             #                                           f'{event.x} , {event.y}'})
             self.canvas.itemconfig(self.debugXYText, {'text':
-                                                      f'{event.x_root} , {event.y_root}'})
+                                                          f'{event.x_root} , {event.y_root}'})
 
     def __keyMotion(self, x, y):  # 键盘控制鼠标移动
         if not self.isInitGrab:
             return
         pos = Hotkey.getMousePos()
-        pos = (pos[0]+x, pos[1]+y)
+        pos = (pos[0] + x, pos[1] + y)
         Hotkey.setMousePos(pos)
 
     def __repaint(self, event):  # 重绘
@@ -431,13 +432,13 @@ class ScreenshotWin():  # 内置截图模式
                 self.debugList.append(e)
                 # 文字提示框
                 e = self.canvas.create_rectangle(
-                    p1x+10, p1y+10, p1x+440, p1y+60, fill='white', width=0)
+                    p1x + 10, p1y + 10, p1x + 440, p1y + 60, fill='white', width=0)
                 self.debugList.append(e)
-                e = self.canvas.create_text(p1x+15, p1y+15,
+                e = self.canvas.create_text(p1x + 15, p1y + 15,
                                             font=('', 15, 'bold'), fill=color, anchor='nw',
-                                            text=f'屏幕{index+1}: {box} | {box[2]-box[0]},{box[3]-box[1]}')
+                                            text=f'屏幕{index + 1}: {box} | {box[2] - box[0]},{box[3] - box[1]}')
                 self.debugList.append(e)
-                e = self.canvas.create_text(p1x+15, p1y+43,
+                e = self.canvas.create_text(p1x + 15, p1y + 43,
                                             font=('', 10, ''), fill=color, anchor='nw',
                                             text=f'按 Ctrl+Shift+Alt+D 退出调试模式')
                 self.debugList.append(e)
@@ -455,7 +456,7 @@ class ScreenshotWin():  # 内置截图模式
         output.close()
         if Config.get('isShowImage'):  # 显示图片展示窗
             b = self.sourceBox
-            p = (b[0], b[1], b[2]-b[0], b[3]-b[1])
+            p = (b[0], b[1], b[2] - b[0], b[3] - b[1])
             ShowImage(imgPIL=self.imageResult, imgData=imgData, initPos=p)
             return False
         else:  # 直接识别

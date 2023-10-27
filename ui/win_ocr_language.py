@@ -18,95 +18,95 @@ class OcrLanguageWin:
         self.win = None
 
     def _initWin(self):
-        # 主窗口
+        # Main window
         self.win = tk.Toplevel()
-        self.win.iconphoto(False, Asset.getImgTK('umiocr24'))  # 设置窗口图标
-        self.win.minsize(250, 340)  # 最小大小
+        self.win.iconphoto(False, Asset.getImgTK('umiocr24')) # Set the window icon
+        self.win.minsize(250, 340) # Minimum size
         self.win.geometry(f'{250}x{340}')
         self.win.unbind('<MouseWheel>')
-        self.win.title('更改语言')
-        self.win.wm_protocol(  # 注册窗口关闭事件
+        self.win.title('Change language')
+        self.win.wm_protocol( # Register window closing event
             'WM_DELETE_WINDOW', self.exit)
         fmain = tk.Frame(self.win, padx=4, pady=4)
         fmain.pack(fill='both', expand=True)
 
-        # 顶部信息
+        # topInformation
         ftop = tk.Frame(fmain)
         ftop.pack(side='top', fill='x')
-        tk.Label(ftop, text='当前：').pack(side='left')
+        tk.Label(ftop, text='Current:').pack(side='left')
         tk.Label(ftop, textvariable=Config.getTK(
             'ocrConfigName')).pack(side='left')
-        wid = tk.Label(ftop, text='提示', fg='deeppink', cursor='question_arrow')
+        wid = tk.Label(ftop, text='prompt', fg='deeppink', cursor='question_arrow')
         wid.pack(side='right')
         Config.main.balloon.bind(
-            wid, '''窗口操作：
-1. 正常时，切换语言立即生效
-2. 若在任务进行中切换语言，将在下次任务时生效
-3. 主窗口启用/取消置顶后，需重新打开本窗口，才能使本窗口设为相应的置顶状态
+            wid, '''Window operations:
+1. When normal, switching language takes effect immediately
+2. If you switch the language during the mission, it will take effect on the next mission.
+3. After enabling/canceling the pin on top of the main window, you need to reopen this window to set the window to the corresponding pin on top status.
 
-更多语言：
-本软件有整理好的多国语言扩展包，可导入更多语言模型库。也可以
-手动导入PaddleOCR兼容的模型库，详情请浏览项目Github主页。''')
+More languages:
+This software has organized multi-language expansion packages, which can import more language model libraries. OK
+Manually import the PaddleOCR compatible model library. For details, please visit the project Github homepage. ''')
 
-        # 中部控制
+        # central control
         fmiddle = tk.Frame(fmain, pady=4)
         fmiddle.pack(side='top', expand=True, fill='both')
         fmiddle.grid_columnconfigure(0, weight=1)
 
-        # 语言表格
+        # Language table
         ftable = tk.Frame(fmiddle, bg='red')
         ftable.pack(side='left', expand=True, fill='both')
         self.table = ttk.Treeview(
-            master=ftable,  # 父容器
-            # height=50,  # 表格显示的行数,height行
-            columns=['ConfigName'],  # 显示的列
-            show='headings',  # 隐藏首列
+            master=ftable, # Parent container
+            # height=50, # Number of rows displayed in the table, height rows
+            columns=['ConfigName'], # Displayed columns
+            show='headings', # Hide the first column
         )
         self.table.pack(expand=True, side='left', fill='both')
-        self.table.heading('ConfigName', text='语言')
+        self.table.heading('ConfigName', text='Language')
         self.table.column('ConfigName', minwidth=40)
-        vbar = tk.Scrollbar(  # 绑定滚动条
+        vbar = tk.Scrollbar( # Bind scroll bar
             ftable, orient='vertical', command=self.table.yview)
         vbar.pack(side='left', fill='y')
         self.table["yscrollcommand"] = vbar.set
-        self.table.bind('<ButtonRelease-1>',  # 绑定鼠标松开。按下时先让表格组件更新，松开才能获取到最新值
+        self.table.bind('<ButtonRelease-1>', # Release the bound mouse. When pressed, let the table component update first, and then release to get the latest value.
                         lambda *e: self.updateLanguage())
 
         # fmright = tk.Frame(fmiddle)
         # fmright.pack(side='left', fill='y')
         # tk.Label(fmright, text='右侧').pack(side='left')
 
-        # 底部控制
+        # Bottom control
         fbottom = tk.Frame(fmain)
         fbottom.pack(side='top', fill='x')
-        Widget.comboboxFrame(fbottom, '合并段落：', 'tbpu').pack(
+        Widget.comboboxFrame(fbottom, 'Combined paragraphs:', 'tbpu').pack(
             side='top', fill='x', pady=3)
         wid = ttk.Checkbutton(fbottom, variable=Config.getTK('isLanguageWinAutoOcr'),
-                              text='立即识图')
+                              text='Read pictures immediately')
         wid.pack(side='left')
-        Config.main.balloon.bind(wid, '修改语言后，立即以当前语言进行一次剪贴板识图')
-        wid = ttk.Button(fbottom, text='关闭', width=5,
+        Config.main.balloon.bind(wid, 'After changing the language, immediately perform a clipboard recognition in the current language')
+        wid = ttk.Button(fbottom, text='Close', width=5,
                          command=self.exit)
         wid.pack(side='right')
         wid = ttk.Checkbutton(fbottom, variable=Config.getTK('isLanguageWinAutoExit'),
-                              text='自动关闭')
+                              text='Automatically close')
         wid.pack(side='right', padx=10)
-        Config.main.balloon.bind(wid, '修改语言后，立即关闭本窗口')
+        Config.main.balloon.bind(wid, 'After changing the language, close this window immediately')
 
         self.updateTable()
 
     def open(self):
         if self.win:
-            self.win.state('normal')  # 恢复前台状态
+            self.win.state('normal') #Restore the foreground state
         else:
-            self._initWin()  # 初始化窗口
-        self.win.attributes('-topmost', 1)  # 设置层级最前
+            self._initWin() #Initialize window
+        self.win.attributes('-topmost', 1) # Set the top level
         if Config.get('isWindowTop'):
-            self.win.title('更改语言(置顶)')
+            self.win.title('Change language (top)')
         else:
-            self.win.title('更改语言')
-            self.win.attributes('-topmost', 0)  # 解除
-        # 窗口移动到鼠标附近
+            self.win.title('Change language')
+            self.win.attributes('-topmost', 0) #Remove
+        #Move the window near the mouse
         (x, y) = Hotkey.getMousePos()
         w = self.win.winfo_width()
         h = self.win.winfo_height()
@@ -118,7 +118,7 @@ class OcrLanguageWin:
         h1 = self.win.winfo_screenheight()
         x -= round(w/2)
         y -= 140
-        # 防止窗口超出屏幕
+        # preventWindowFromExtendingBeyondScreen
         if x < 0:
             x = 0
         if y < 0:
@@ -129,31 +129,31 @@ class OcrLanguageWin:
             y = h1-h-70
         self.win.geometry(f"+{x}+{y}")
 
-    def updateTable(self):  # 刷新语言表格
+    def updateTable(self):  # Refresh language table
         configDist = Config.get('ocrConfig')
         configName = Config.get('ocrConfigName')
         for key, value in configDist.items():
             tableInfo = (key)
             dictInfo = {'key': key}
-            id = self.table.insert('', 'end', values=tableInfo)  # 添加到表格组件中
+            id = self.table.insert('', 'end', values=tableInfo) # Add to table component
             self.lanList.append(id, dictInfo)
             if key == configName:
                 self.table.selection_set(id)
 
-    def updateLanguage(self):  # 刷新选中语言，写入配置
+    def updateLanguage(self):  # Refresh the selected language and write the configuration
         chi = self.table.selection()
         if len(chi) == 0:
             return
         chi = chi[0]
         lan = self.lanList.get(key=chi)['key']
         Config.set('ocrConfigName', lan)
-        if Config.get('isLanguageWinAutoExit'):  # 自动关闭
+        if Config.get('isLanguageWinAutoExit'): # Automatically close
             self.exit()
-        if Config.get('isLanguageWinAutoOcr'):  # 重复任务
+        if Config.get('isLanguageWinAutoOcr'): # Repeat the task
             Config.main.runClipboard()
 
     def exit(self):
-        self.win.withdraw()  # 隐藏窗口
+        self.win.withdraw()  # hideWindow
 
 
 lanWin = OcrLanguageWin()

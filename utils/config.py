@@ -333,12 +333,12 @@ _ConfigDict = {
         'isTK': True,
     },
     # 文块后处理
-    'tbpuName': {  # 当前选择的文块后处理
+    'tbpuName': {  # Post-processing of the currently selected text block
         'default': '',
         'isSave': True,
         'isTK': True,
     },
-    'tbpu': {  # 文块后处理。这个参数通过 ocr\tbpu\__init__.py 导入，避免循环引用
+    'tbpu': {  # Block post-processing. This parameter is imported through ocr\tbpu\__init__.py to avoid circular references
         'default': {
             '通用': None,
         },

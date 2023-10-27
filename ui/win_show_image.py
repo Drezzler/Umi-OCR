@@ -10,100 +10,100 @@ from PIL import Image, ImageTk
 from win32clipboard import OpenClipboard, EmptyClipboard, SetClipboardData, CloseClipboard, CF_DIB
 from io import BytesIO
 
-MinSize = 140  # 最小大小
-MaxSizeMargin = 80  # 最大大小时，距离屏幕边缘的空隙
-RatioThreshold = 3  # 当图片长宽比例大于该阈值时，缩放操作只读取鼠标的纵/横向移动，以避免短边缩放过快。
+MinSize = 140 # Minimum size
+MaxSizeMargin = 80 # At maximum size, the gap from the edge of the screen
+RatioThreshold = 3 # When the aspect ratio of the image is greater than this threshold, the zoom operation only reads the vertical/lateral movement of the mouse to avoid scaling the short side too fast.
 
 
 class ShowImage:
     def __init__(self, imgPIL=None, imgData=None, title='', initPos=None):
-        # imgPIL：PIL对象，imgData：位图数据。必须传入任意一个或两个。
-        # title：窗口标题（可选）
-        # initPos：窗口初始位置（可选），4位列表：[左上x，左上y，宽w，高h]
+        # imgPIL: PIL object, imgData: bitmap data. Either or both must be passed in.
+        # title: window title (optional)
+        # initPos: Window initial position (optional), 4-digit list: [upper left x, upper left y, width w, height h]
 
-        # 初始化图片数据
+        #Initialize image data
         self.imgPIL, self.imgData = imgPIL, imgData
         if not self.imgData and not self.imgPIL:
             return
-        if not self.imgData:  # 从PIL Image对象创建位图数据
+        if not self.imgData: # Create bitmap data from PIL Image object
             output = BytesIO()
-            imgPIL.save(output, 'BMP')  # 以位图保存
-            self.imgData = output.getvalue()[14:]  # 去除header
+            imgPIL.save(output, 'BMP') # Save as bitmap
+            self.imgData = output.getvalue()[14:] # Remove header
             output.close()
-        if not self.imgPIL:  # 从位图数据创建PIL Image对象
+        if not self.imgPIL: # Create a PIL Image object from bitmap data
             self.imgPIL = Image.open(BytesIO(imgData))
-        self.imgTK = ImageTk.PhotoImage(self.imgPIL)  # 保存图片对象
-        self.ratio = self.imgPIL.width / self.imgPIL.height  # 图片比例
-        self.wh = (self.imgPIL.width, self.imgPIL.height)  # 当前图片宽高
+        self.imgTK = ImageTk.PhotoImage(self.imgPIL) # Save the image object
+        self.ratio = self.imgPIL.width / self.imgPIL.height # Image ratio
+        self.wh = (self.imgPIL.width, self.imgPIL.height) # Current picture width and height
 
-        # 创建Tkinter窗口
+        #Create Tkinter window
         self.win = tk.Toplevel()
-        self.win.iconphoto(False, Asset.getImgTK('umiocr24'))  # 设置窗口图标
-        self.win.resizable(False, False)  # 禁止原生缩放窗口
-        if not title:  # 创建标题
-            title = f'预览 {time.strftime("%H:%M")} （{self.wh[0]}x{self.wh[1]}）'
+        self.win.iconphoto(False, Asset.getImgTK('umiocr24')) # Set the window icon
+        self.win.resizable(False, False) # Disable native zoom window
+        if not title: # Create title
+            title = f'Preview {time.strftime("%H:%M")} ({self.wh[0]}x{self.wh[1]})'
         self.win.title(title)
 
-        # 菜单栏
+        # Menu Bar
         self.menubar = tk.Menu(self.win)
         self.win.config(menu=self.menubar)
-        self.menubar.add_command(label='锁定', command=self.__switchLock)
-        self.menubar.add_command(label='识别', command=self.__ocr)
-        self.menubar.add_command(label='保存', command=self.__saveImage)
-        # self.menubar.add_command(label='复制', command=self.copyImage)
+        self.menubar.add_command(label='lock', command=self.__switchLock)
+        self.menubar.add_command(label='identification', command=self.__ocr)
+        self.menubar.add_command(label='save', command=self.__saveImage)
+        # self.menubar.add_command(label='copy', command=self.copyImage)
         submenu = tk.Menu(self.menubar, tearoff=False)
-        submenu.add_command(label='锁定窗口：Ctrl+T 或 Ctrl+L',
+        submenu.add_command(label='Lock window: Ctrl+T or Ctrl+L',
                             command=lambda *e: self.__switchLock(1))
-        submenu.add_command(label='文字识别：回车', command=self.__ocr)
-        submenu.add_command(label='保存图片到本地：Ctrl+S', command=self.__saveImage)
-        submenu.add_command(label='复制图片到剪贴板：Ctrl+C', command=self.__copyImage)
-        submenu.add_command(label='关闭窗口：Esc', command=self.__onClose)
-        submenu.add_command(label='移动窗口：拖拽任意位置')
-        submenu.add_command(label='缩放窗口：拖拽右下角箭头图标')
-        submenu.add_command(label='缩放窗口：鼠标滚轮')
-        submenu.add_command(label='调整透明度：Ctrl+滚轮')
-        self.menubar.add_cascade(label='更多', menu=submenu)
+        submenu.add_command(label='Text recognition: Enter', command=self.__ocr)
+        submenu.add_command(label='Save image to local: Ctrl+S', command=self.__saveImage)
+        submenu.add_command(label='Copy image to clipboard: Ctrl+C', command=self.__copyImage)
+        submenu.add_command(label='Close window: Esc', command=self.__onClose)
+        submenu.add_command(label='Move window: drag anywhere')
+        submenu.add_command(label='Zoom window: drag the arrow icon in the lower right corner')
+        submenu.add_command(label='Zoom window: mouse wheel')
+        submenu.add_command(label='Adjust transparency: Ctrl+Scroll wheel')
+        self.menubar.add_cascade(label='more', menu=submenu)
 
-        # 创建Canvas对象并将其填充为整个窗口
+        #Create a Canvas object and fill it to fill the entire window
         self.canvas = tk.Canvas(
             self.win, width=self.imgPIL.width, height=self.imgPIL.height, relief='solid')
         self.canvas.pack(fill='both', expand=True)
-        self.canvas.config(borderwidth=0, highlightthickness=0)  # 隐藏Canvas的边框
-        # 在Canvas上创建图像
+        self.canvas.config(borderwidth=0, highlightthickness=0) #Hide the Canvas border
+        #Create image on Canvas
         self.imgCanvas = self.canvas.create_image(
             0, 0, anchor='nw', image=self.imgTK)
 
-        # 缩放和移动相关参数
+        # Zoom and move related parameters
         imgArr = Asset.getImgTK('zoomArrowAlpha48')
         self.zoomSize = (imgArr.width(), imgArr.height())
-        self.mouseOriginXY = None  # 本次操作的起始鼠标位置
-        self.zoomOriginWH = None  # 本次缩放的起始图片宽高
-        self.zoomArrow2 = self.canvas.create_image(  # 缩放箭头第2层（鼠标进入时显示）
+        self.mouseOriginXY = None # Starting mouse position for this operation
+        self.zoomOriginWH = None # The width and height of the starting image for this zoom
+        self.zoomArrow2 = self.canvas.create_image( # Zoom arrow layer 2 (displayed when the mouse enters)
             self.wh[0]-self.zoomSize[0], self.wh[1]-self.zoomSize[1], anchor='nw', image=imgArr)
-        self.zoomArrow1 = self.canvas.create_image(  # 缩放箭头第1层（鼠标接近时显示）
+        self.zoomArrow1 = self.canvas.create_image( # Zoom arrow layer 1 (displayed when the mouse is close)
             self.wh[0]-self.zoomSize[0], self.wh[1]-self.zoomSize[1], anchor='nw', image=imgArr)
-        self.canvas.itemconfig(self.zoomArrow1, state=tk.HIDDEN)  # 默认隐藏1、2层
+        self.canvas.itemconfig(self.zoomArrow1, state=tk.HIDDEN) #Hide layers 1 and 2 by default
         self.canvas.itemconfig(self.zoomArrow2, state=tk.HIDDEN)
-        self.moveOriginXY = None  # 本次移动的起始窗口位置
+        self.moveOriginXY = None # The starting window position of this move
 
-        # 锁定相关
+        # Lock related
         imgLock = Asset.getImgTK('lockAlpha48')
-        self.isLock = False  # 初始值必为False
-        self.lockX, self.lockY = 0, 0  # 锁定模式下的窗口偏移量
-        self.lockBtn2 = self.canvas.create_image(  # 锁定图标第2层（鼠标进入时显示）
+        self.isLock = False # The initial value must be False
+        self.lockX, self.lockY = 0, 0 # Window offset in lock mode
+        self.lockBtn2 = self.canvas.create_image( # Lock icon layer 2 (displayed when mouse enters)
             0, 0, anchor='nw', image=imgLock)
-        self.lockBtn1 = self.canvas.create_image(  # 锁定图标第1层（鼠标接近时显示）
+        self.lockBtn1 = self.canvas.create_image( # Lock icon layer 1 (displayed when the mouse is close)
             0, 0, anchor='nw', image=imgLock)
-        self.canvas.itemconfig(self.lockBtn1, state=tk.HIDDEN)  # 默认隐藏1、2层
+        self.canvas.itemconfig(self.lockBtn1, state=tk.HIDDEN) #Hide layers 1 and 2 by default
         self.canvas.itemconfig(self.lockBtn2, state=tk.HIDDEN)
 
-        # 绑定事件
-        self.win.bind('<Enter>', self.__onWinEnter)  # 鼠标进入窗口
-        self.win.bind('<Leave>', self.__onWinLeave)  # 鼠标离开窗口
-        self.canvas.bind('<ButtonPress-1>', self.__onCanvasPress)  # 按下画布
-        self.canvas.bind('<ButtonRelease-1>', self.__onCanvasRelease)  # 松开画布
-        self.canvas.bind('<B1-Motion>', self.__onCanvasMotion)  # 拖拽画布
-        self.canvas.bind('<MouseWheel>', self.__onMouseWheel)  # 滚轮缩放或透明度调整
+        # Bind event
+        self.win.bind('<Enter>', self.__onWinEnter) # Mouse enters the window
+        self.win.bind('<Leave>', self.__onWinLeave) # Mouse leaves the window
+        self.canvas.bind('<ButtonPress-1>', self.__onCanvasPress) # Press the canvas
+        self.canvas.bind('<ButtonRelease-1>', self.__onCanvasRelease) # Release the canvas
+        self.canvas.bind('<B1-Motion>', self.__onCanvasMotion) # Drag the canvas
+        self.canvas.bind('<MouseWheel>', self.__onMouseWheel) # Wheel zoom or transparency adjustment
         # 鼠标进入和离开缩放按钮
         self.canvas.tag_bind(self.zoomArrow1, '<Enter>', self.__onZoomEnter)
         self.canvas.tag_bind(self.zoomArrow1, '<Leave>', self.__onZoomLeave)
@@ -111,32 +111,32 @@ class ShowImage:
         self.canvas.tag_bind(self.lockBtn1, '<Enter>', self.__onLockEnter)
         self.canvas.tag_bind(self.lockBtn1, '<Leave>', self.__onLockLeave)
 
-        # 绑定快捷键
-        self.win.bind('<Return>', self.__ocr)  # 回车：OCR
-        self.win.bind('<Control-s>', self.__saveImage)  # Ctrl+S：保存
-        self.win.bind('<Control-c>', self.__copyImage)  # Ctrl+C：复制图片
-        self.win.bind('<Escape>', self.__onClose)  # Esc：关闭窗口
-        # Ctrl+T 和 ctrl+L：锁定&置顶
+        # Bind shortcut keys
+        self.win.bind('<Return>', self.__ocr) # Enter: OCR
+        self.win.bind('<Control-s>', self.__saveImage) # Ctrl+S: Save
+        self.win.bind('<Control-c>', self.__copyImage) # Ctrl+C: Copy the image
+        self.win.bind('<Escape>', self.__onClose) # Esc: Close the window
+        # Ctrl+T and ctrl+L: Lock & Pin
         self.win.bind('<Control-t>', lambda *e: self.__switchLock(0))
         self.win.bind('<Control-l>', lambda *e: self.__switchLock(0))
 
         # 初始处理
         def start():  # 展开
-            self.win.attributes('-topmost', 1)  # 弹到最顶层
-            if not Config.get('isWindowTop'):  # 跟随主窗口设置
-                self.win.attributes('-topmost', 0)  # 取消锁定置顶
-            self.win.focus()  # 窗口获得焦点
+            self.win.attributes('-topmost', 1) # Pop to the top
+            if not Config.get('isWindowTop'): # Follow the main window settings
+                self.win.attributes('-topmost', 0) # Unlock topmost
+            self.win.focus() # The window gets focus
         self.win.after(200, start)
-        # 设定初始大小和位置
-        if initPos:  # 已设定初始值
-            x, y, w, h = initPos  # 解包元组
-        else:  # 未设定初始值，则由鼠标位置决定
-            x, y = Hotkey.getMousePos()  # 获取鼠标位置
-            w, h = self.wh[0], self.wh[1]  # 窗口大小=图像长宽
-            x, y = x-w//2, y-h//2  # 窗口中心移到鼠标位置
-        self.win.geometry(f'+{x}+{y}')  # 设定初始位置
-        self.win.update()  # 必须先update一下再设定大小，否则菜单栏的高度会被吃掉
-        self.__resize(w, h)  # 设定初始大小
+        setInitialSizeAndPosition
+        if initPos: # Initial value has been set
+            x, y, w, h = initPos # Unpack tuple
+        else: # If the initial value is not set, it is determined by the mouse position.
+            x, y = Hotkey.getMousePos() # Get the mouse position
+            w, h = self.wh[0], self.wh[1] # Window size = image length and width
+            x, y = x-w//2, y-h//2 # Move the center of the window to the mouse position
+        self.win.geometry(f'+{x}+{y}') # Set the initial position
+        self.win.update() # You must update it first and then set the size, otherwise the height of the menu bar will be eaten
+        self.__resize(w, h) # Set the initial size
 
     # ============================== 事件 ==============================
 

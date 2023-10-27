@@ -14,64 +14,64 @@ Log = GetLog()
 
 
 class EngFlag(Enum):
-    '''引擎运行状态标志'''
-    none = 0  # 不在运行
-    initing = 1  # 正在启动
-    waiting = 2  # 待命
-    running = 3  # 工作中
+    '''engineRunningStatusFlag'''
+    none = 0 # Not running
+    initing = 1 # Starting
+    waiting = 2 # on standby
+    running = 3 # Working
 
 
 class MsnFlag(Enum):
-    '''批量任务状态标志'''
-    none = 0  # 不在运行
-    initing = 1  # 正在启动
-    running = 2  # 工作中
-    stopping = 3  # 停止中
+    '''batchTaskStatusFlag'''
+    none = 0 # Not running
+    initing = 1 # Starting
+    running = 2 # Working
+    stopping = 3 # Stopping
 
 
 class OcrEngine:
-    '''OCR引擎，含各种操作的方法'''
+    '''OCR engine, including various operation methods'''
 
     def __init__(self):
-        # self.__initVar() # 不能使用__initVar，不能调用self.setEngFlag()，因为不能保证主tk已经启动事件循环
-        self.__ocrInfo = ()  # 记录之前的OCR参数
-        self.__ramTips = ''  # 内存占用提示
-        self.__runMissionLoop = None  # 批量识别的事件循环
-        self.ocr = None  # OCR API对象
+        # self.__initVar() # __initVar cannot be used and self.setEngFlag() cannot be called because there is no guarantee that the main tk has started the event loop.
+        self.__ocrInfo = () # Record previous OCR parameters
+        self.__ramTips = '' #Memory usage tips
+        self.__runMissionLoop = None # Batch-identified event loop
+        self.ocr = None # OCR API object
         self.winSetRunning = None
         self.engFlag = EngFlag.none
         self.msnFlag = MsnFlag.none
-        OcrEngRam.init(self.restart, self.getEngFlag, EngFlag)  # 内存优化·初始化，传入接口
+        OcrEngRam.init(self.restart, self.getEngFlag, EngFlag) # Memory optimization·initialization, passing in interface
 
     def __initVar(self):
-        self.__ocrInfo = ()  # 记录之前的OCR参数
-        self.__ramTips = ''  # 内存占用提示
-        self.ocr = None  # OCR API对象
-        # self.msnFlag = MsnFlag.none  # 任务状态不能在这里改，可能引擎已经关了，任务线程还在继续
+        self.__ocrInfo = () # Record previous OCR parameters
+        self.__ramTips = '' #Memory usage tips
+        self.ocr = None # OCR API object
+        # self.msnFlag = MsnFlag.none # The task status cannot be changed here. The engine may have been turned off and the task thread is still continuing.
 
     def __setEngFlag(self, engFlag):
-        '''更新引擎状态并向主窗口通知'''
+        '''Update engine status and notify the main window'''
         self.engFlag = engFlag
         if self.ocr and Config.get('isDebug'):
             if engFlag == EngFlag.waiting:  # 刷新内存占用
                 self.__ramTips = f'（内存：{self.ocr.getRam()}MB）'
         msg = {
-            EngFlag.none:  '已关闭',
-            EngFlag.initing:  '正在启动',
-            EngFlag.waiting:  f'待命{self.__ramTips}',
-            EngFlag.running:  f'工作{self.__ramTips}',
+            EngFlag.none: 'Close',
+            EngFlag.initing: 'Starting',
+            EngFlag.waiting: f'waiting{self.__ramTips}',
+            EngFlag.running: f'work{self.__ramTips}',
         }.get(engFlag, f'未知（{engFlag}）')
         isTkUpdate = False
         if engFlag == EngFlag.initing:  # 启动中，刷新一下UI
             isTkUpdate = True
         Config.set('ocrProcessStatus', msg, isTkUpdate)  # 设置
-        # Log.info(f'引擎 ⇒ {engFlag}')
+        # Log.info(f'ENGINE ⇒ {engFlag}')
 
     def getEngFlag(self):
         return self.engFlag
 
     def __setMsnFlag(self, msnFlag):
-        '''更新任务状态并向主窗口通知'''
+        '''Update task status and notify the main window'''
         self.msnFlag = msnFlag
         if self.winSetRunning:
             self.winSetRunning(msnFlag)
@@ -79,7 +79,7 @@ class OcrEngine:
 
     @staticmethod
     def __tryFunc(func, *e):
-        '''尝试执行func'''
+        '''TRY TO EXECUTE FUNC'''
         if func:
             try:
                 func(*e)
@@ -180,53 +180,53 @@ class OcrEngine:
         return data
 
     def runMission(self, paths, msn):
-        '''批量识别多张图片，异步。若引擎未启动，则自动启动。\n
-        paths: 路径\n
-        msn:   任务器对象，Msn的派生类，必须含有 onStart|onGet|onStop|onError 四个方法'''
-        if not self.msnFlag == MsnFlag.none:  # 正在运行
-            Log.error(f'已有任务未结束就开始了下一轮任务')
-            raise Exception('已有任务未结束')
+        '''Recognize multiple pictures in batches, asynchronously. If the engine does not start, it will start automatically. \n
+        paths: path\n
+        msn: Tasker object, a derived class of Msn, must contain onStart|onGet|onStop|onError four methods'''
+        if not self.msnFlag == MsnFlag.none: # Running
+            Log.error(f'The next round of tasks started before the existing task was completed')
+            raise Exception('Existing tasks have not ended')
 
-        self.winSetRunning = Config.main.setRunning  # 设置运行状态接口
-        self.__setMsnFlag(MsnFlag.initing)  # 设任务初始化
+        self.winSetRunning = Config.main.setRunning # Set the running status interface
+        self.__setMsnFlag(MsnFlag.initing) # Set task initialization
 
-        def runLoop():  # 启动事件循环
+        def runLoop(): # Start event loop
             asyncio.set_event_loop(self.__runMissionLoop)
             self.__runMissionLoop.run_forever()
 
-        # 在当前线程下创建事件循环
+        #Create an event loop under the current thread
         self.__runMissionLoop = asyncio.new_event_loop()
-        # 开启新的线程，在新线程中启动事件循环
+        # Start a new thread and start the event loop in the new thread
         threading.Thread(target=runLoop).start()
-        # 在新线程中事件循环不断游走执行
+        # The event loop continues to wander and execute in the new thread
         asyncio.run_coroutine_threadsafe(self.__runMission(
             paths, msn
         ), self.__runMissionLoop)
 
     async def __runMission(self, paths, msn):
-        '''新线程中批量识图。在这个线程里更新UI是安全的。'''
+        '''Recognize images in batches in a new thread. It is safe to update the UI in this thread. '''
 
         num = {
-            'all': len(paths),  # 全部数量
-            'now': 1,  # 当前处理序号
-            'index': 0,  # 当前下标
-            'succ': 0,  # 成功个数
-            'err': 0,  # 失败个数
-            'exist': 0,  # 成功里面有文字的个数
-            'none': 0,  # 成功里面无文字的个数
-            'time': 0,  # 执行至今的总时间
-            'timeNow': 0,  # 这一轮的耗时
+            'all': len(paths), # all quantities
+            'now': 1, # Current processing sequence number
+            'index': 0, # Current index
+            'succ': 0, # Number of successes
+            'err': 0, # Number of failures
+            'exist': 0, #The number of words in success
+            'none': 0, #The number of successes without text
+            'time': 0, #Total time since execution
+            'timeNow': 0, # The time taken for this round
         }
 
-        def close():  # 停止
+        def close():  # stop
             try:
-                self.__runMissionLoop.stop()  # 关闭异步事件循环
+                self.__runMissionLoop.stop() # Close the asynchronous event loop
             except Exception as e:
-                Log.error(f'任务线程 关闭任务事件循环失败： {e}')
-            self.stopByMode()  # 按需关闭OCR进程
+                Log.error(f'Task thread failed to close the task event loop: {e}')
+            self.stopByMode() # Close the OCR process on demand
             self.__tryFunc(msn.onStop, num)
-            self.__setMsnFlag(MsnFlag.none)  # 设任务停止
-            Log.info(f'任务close！')
+            self.__setMsnFlag(MsnFlag.none) # Set the task to stop
+            Log.info(f'Task close!')
 
         # 启动OCR引擎，批量任务初始化 =========================
         try:

@@ -3,26 +3,26 @@ from utils.config import Config
 import tkinter as tk
 from enum import Enum
 
-winW, winH = 300, 60  # 宽高
-winR = 15  # 圆角半径
-winPosY = 60  # 窗口与屏幕下方的距离
-xxS1 = 14  # 叉叉进度条大小（直径）
-xxS2 = 10  # 叉叉进度条离右上角的距离
-bgColor = '#FFCBE0'  # 背景色
-teS1 = 12  # 主标题字号
-teS2 = 9  # 次内容字号
-teP1 = (12, 9)  # 主标题位置
-teP2 = (12, 35)  # 次内容位置
-popTime = 0.4  # 弹出动画时长，秒
-downTime = 6  # 自动关闭倒计时时长，秒
-frameTime = 30  # 动画帧间隔，毫秒
-winR2 = winR*2
+winW, winH = 300, 60  # width and height
+winR = 15  # corner radius
+winPosY = 60  # The distance between the window and the bottom of the screen
+xxS1 = 14  # Cross progress bar size (diameter)
+xxS2 = 10  # The distance between the cross progress bar and the upper right corner
+bgColor = '#FFCBE0'  # Background color
+teS1 = 12  # Main title font size
+teS2 = 9  # times content font size
+teP1 = (12, 9)  # Main title position
+teP2 = (12, 35)  # times content position
+popTime = 0.4  # Pop-up animation duration, seconds
+downTime = 6  # Automatic shutdown countdown duration, seconds
+frameTime = 30  # animation frame interval, milliseconds
+winR2 = winR * 2
 
 
 class State(Enum):
-    none = 0  # 无
-    starting = 1  # 弹出中
-    showing = 2  # 显示中
+    none = 0  # None
+    starting = 1  # Pop-up
+    showing = 2  # Showing
 
 
 class NotifyWindow():
@@ -49,17 +49,17 @@ class NotifyWindow():
         self.canvas.create_oval(
             0, 0, winR2, winR2, fill=bgColor, outline='')
         self.canvas.create_oval(
-            winW-winR2, 0, winW, winR2, fill=bgColor, outline='')
+            winW - winR2, 0, winW, winR2, fill=bgColor, outline='')
         self.canvas.create_oval(
-            winW-winR2, winH-winR2, winW, winH, fill=bgColor, outline='')
+            winW - winR2, winH - winR2, winW, winH, fill=bgColor, outline='')
         self.canvas.create_oval(
-            0, winH-winR2, winR2, winH, fill=bgColor, outline='')
+            0, winH - winR2, winR2, winH, fill=bgColor, outline='')
         self.canvas.create_rectangle(
-            winR, 0, winW-winR, winH, fill=bgColor, outline='')
+            winR, 0, winW - winR, winH, fill=bgColor, outline='')
         self.canvas.create_rectangle(
-            0, winR, winW, winH-winR, fill=bgColor, outline='')
+            0, winR, winW, winH - winR, fill=bgColor, outline='')
         # 绘制叉叉进度条
-        self.prog = self.canvas.create_arc(winW-xxS1-xxS2, xxS2, winW-xxS2, xxS1+xxS2,
+        self.prog = self.canvas.create_arc(winW - xxS1 - xxS2, xxS2, winW - xxS2, xxS1 + xxS2,
                                            fill='', outline='gray', width=1, style='arc',
                                            start=90, extent=0)
         # self.canvas.create_text(
@@ -75,7 +75,7 @@ class NotifyWindow():
 
     @staticmethod
     def __easing(i):  # 0-1之间的缓动函数，越靠近0增长越快
-        return 1+(i-1)*(i-1)*(i-1)
+        return 1 + (i - 1) * (i - 1) * (i - 1)
 
     def __winGO(self, yValue=0):  # 移动窗口
         winX = int((self.win.winfo_screenwidth() - winW) / 2)  # 位置：屏幕中下
@@ -86,36 +86,36 @@ class NotifyWindow():
         if t <= 0:
             self.state = State.showing  # 状态：显示中
             return
-        p = (popTime-t)/popTime  # 0→1
+        p = (popTime - t) / popTime  # 0→1
         p = self.__easing(p)  # 缓动
         y = winPosY * p
         self.__winGO(y)  # 移动窗口
         self.win.attributes('-alpha', p)  # 透明度
         self.afters[0] = self.win.after(
-            frameTime, lambda: self.__actionStart(t-frameTime/1000))
+            frameTime, lambda: self.__actionStart(t - frameTime / 1000))
 
     def __actionEnd(self, t=popTime):  # 结束弹回动画
         if t <= 0:
             self.close()
             return
-        p = t/popTime  # 1→0
+        p = t / popTime  # 1→0
         p = self.__easing(p)  # 缓动
         y = winPosY * p
         self.__winGO(y)  # 移动窗口
         self.win.attributes('-alpha', p)  # 透明度
         self.afters[1] = self.win.after(
-            frameTime, lambda: self.__actionEnd(t-frameTime/1000))
+            frameTime, lambda: self.__actionEnd(t - frameTime / 1000))
 
     def __actionCountdown(self, t=downTime):  # 倒计时动画
         if t <= 0:
             self.__actionEnd()
             return
-        extent = 360 * (t/downTime)  # 360→0
+        extent = 360 * (t / downTime)  # 360→0
         if extent < 5:
             extent = 0
         self.canvas.itemconfig(self.prog, extent=extent)
         self.afters[2] = self.win.after(
-            frameTime, lambda: self.__actionCountdown(t-frameTime/1000))
+            frameTime, lambda: self.__actionCountdown(t - frameTime / 1000))
 
     def __onClick(self, *e):  # 点击事件
         self.__afterCancel()  # 取消所有运行中的计时器

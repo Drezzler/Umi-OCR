@@ -1,5 +1,5 @@
-# 调用 PaddleOCR-json.exe 的 Python Api
-# 项目主页：
+# Call the Python API of PaddleOCR-json.exe
+# Project home page:
 # https://github.com/hiroi-sora/PaddleOCR-json
 
 
@@ -16,103 +16,105 @@ class OcrAPI:
     """调用OCR"""
 
     def __init__(self, exePath, configPath="", argsStr="", initTimeout=20):
-        """初始化识别器。\n
-        :exePath: 识别器`PaddleOCR_json.exe`的路径。\n
-        :configPath: 配置文件`PaddleOCR_json_config_XXXX.txt`的路径。\n
-        :argument: 启动参数，字符串。参数说明见\n
-        :initTimeout: 初始化超时时间，秒\n
-        `https://github.com/hiroi-sora/PaddleOCR-json#5-%E9%85%8D%E7%BD%AE%E4%BF%A1%E6%81%AF%E8%AF%B4%E6%98%8E`\n
+        """Initialize the recognizer.\n
+        :exePath: The path of the recognizer `PaddleOCR_json.exe`. \n
+        :configPath: The path to the configuration file `PaddleOCR_json_config_XXXX.txt`. \n
+        :argument: startup parameter, string. See parameter description\n
+        :initTimeout: Initialization timeout, seconds\n
+        `https://github.com/hiroi-sora/PaddleOCR-json#5-%E9%85%8D%E7%BD%AE%E4%BF%A1%E6%81%AF%E8%AF%B4% E6%98%8E`\n
         """
-        cwd = os.path.abspath(os.path.join(exePath, os.pardir))  # 获取exe父文件夹
-        # 处理启动参数
+        cwd = os.path.abspath(os.path.join(exePath, os.pardir))  # Get the exe parent folder
+        # Process startup parameters
         args = " "
-        if argsStr:  # 添加用户指定的启动参数
+        if argsStr:  # Add user-specified startup parameters
             args += f" {argsStr}"
-        if configPath and "config_path" not in args:  # 指定配置文件
+        if configPath and "config_path" not in args:  # Specify configuration file
             args += f' --config_path="{configPath}"'
-        if "use_debug" not in args:  # 关闭debug模式
+        if "use_debug" not in args:  # Turn off debug mode
             args += " --use_debug=0"
-        # 设置子进程启用静默模式，不显示控制台窗口
+        # Set the child process to enable silent mode and not display the console window
         startupinfo = None
         if "win32" in str(sysPlatform).lower():
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags = (
-                subprocess.CREATE_NEW_CONSOLE | subprocess.STARTF_USESHOWWINDOW
+                    subprocess.CREATE_NEW_CONSOLE | subprocess.STARTF_USESHOWWINDOW
             )
             startupinfo.wShowWindow = subprocess.SW_HIDE
-        self.ret = subprocess.Popen(  # 打开管道
+        self.ret = subprocess.Popen(  # Open the pipe
             exePath + args,
             cwd=cwd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,  # 丢弃stderr的内容
-            startupinfo=startupinfo,  # 开启静默模式
+            stderr=subprocess.DEVNULL,  # Discard the contents of stderr
+            startupinfo=startupinfo,  # Turn on silent mode
         )
-        atexit.register(self.stop)  # 注册程序终止时执行强制停止子进程
-        self.psutilProcess = psutilProcess(self.ret.pid)  # 进程监控对象
+        atexit.register(self.stop)  # Execute a forced stop of the child process when the registered program terminates
+        self.psutilProcess = psutilProcess(self.ret.pid)  # Process monitoring object
 
-        self.initErrorMsg = f"OCR init fail.\n引擎路径：{exePath}\n启动参数：{args}"
+        self.initErrorMsg = f"OCR init fail.\nEngine path: {exePath}\nStartup parameters: {args}"
 
-        # 子线程检查超时
+        # Sub-thread check timeout
         def cancelTimeout():
             checkTimer.cancel()
 
         def checkTimeout():
             self.initErrorMsg = f"OCR init timeout: {initTimeout}s.\n{exePath}"
-            self.ret.kill()  # 关闭子进程
+            self.ret.kill()  # Close the child process
 
         checkTimer = threading.Timer(initTimeout, checkTimeout)
         checkTimer.start()
 
-        # 循环读取，检查成功标志
+        # Loop reading and check success flag
         while True:
-            if not self.ret.poll() == None:  # 子进程已退出，初始化失败
+            if not self.ret.poll() == None:  # The child process has exited and initialization failed.
                 cancelTimeout()
                 raise Exception(self.initErrorMsg)
-            # 必须按行读，所以不能使用communicate()来规避超时问题
+            # Must be read line by line, so communicate() cannot be used to avoid timeout issues
             initStr = self.ret.stdout.readline().decode("ascii", errors="ignore")
-            if "OCR init completed." in initStr:  # 初始化成功
+            if "OCR init completed." in initStr:  # Initialization successful
                 break
         cancelTimeout()
 
     def run(self, imgPath):
-        """对一张图片文字识别。\n
-        :exePath: 图片路径。\n
-        :return:  {'code': 识别码, 'data': 内容列表或错误信息字符串}\n"""
+        """Recognize text in a picture.\n
+        :exePath: Image path. \n
+        :return: {'code': identification code, 'data': content list or error message string}\n"""
         if not self.ret.poll() == None:
             return {"code": 400, "data": f"子进程已结束。"}
         # wirteStr = imgPath if imgPath[-1] == '\n' else imgPath + '\n'
         writeDict = {"image_dir": imgPath}
-        try:  # 输入地址转为ascii转义的json字符串，规避编码问题
+        try:  # Convert the input address to an ascii-escaped json string to avoid encoding issues
             wirteStr = jsonDumps(writeDict, ensure_ascii=True, indent=None) + "\n"
         except Exception as e:
-            return {"code": 403, "data": f"输入字典转json失败。字典：{writeDict} || 报错：[{e}]"}
-        # 输入路径
+            return {"code": 403,
+                    "data": f"Failed to convert input dictionary to json. Dictionary: {writeDict} || Error: [{e}]"}
+        # Input path
         try:
             self.ret.stdin.write(wirteStr.encode("ascii"))
             self.ret.stdin.flush()
         except Exception as e:
-            return {"code": 400, "data": f"向识别器进程写入图片地址失败，疑似子进程已崩溃。{e}"}
+            return {"code": 400,
+                    "data": f"Failed to write the image address to the recognizer process, and the child process is suspected to have crashed.{e}"}
         if imgPath[-1] == "\n":
             imgPath = imgPath[:-1]
-        # 获取返回值
+        # Get the return value
         try:
             getStr = self.ret.stdout.readline().decode("utf-8", errors="ignore")
         except Exception as e:
             return {
                 "code": 401,
-                "data": f'读取识别器进程输出值失败，疑似传入了不存在或无法识别的图片 "{imgPath}" 。{e}',
+                "data": f'failed to read the output value of the recognizer process. It is suspected that a non-existent or unrecognizable image "{imgPath}" was passed in. {e}',
             }
         try:
             return jsonLoads(getStr)
         except Exception as e:
             return {
                 "code": 402,
-                "data": f'识别器输出值反序列化JSON失败，疑似传入了不存在或无法识别的图片 "{imgPath}" 。异常信息：{e}。原始内容：{getStr}',
+                "data": f'tHE recognizer output value failed to deserialize JSON. It is suspected that a non-existent or unrecognizable image "{imgPath}" was passed in. Exception information: {e}. Original content: {getStr}',
             }
 
     def stop(self):
-        self.ret.kill()  # 关闭子进程。误重复调用似乎不会有坏的影响
+       self.ret.kill() # Close the child process. Repeated calls by mistake don't seem to have any ill effects
 
     def getRam(self):
         """返回内存占用，数字，单位为MB"""

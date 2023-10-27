@@ -1,4 +1,4 @@
-# 通过 pyinstaller 打包为 exe
+# 通过 pyinstaller PACKAGED AS exe
 
 import os
 
